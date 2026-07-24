@@ -1,4 +1,4 @@
-# Virtual environment
+# Virtual Environment
 .venv/
 
 # Environment variables
@@ -8,8 +8,11 @@
 __pycache__/
 *.pyc
 
-# Chroma database
-vectorstore/chroma_db/
-
 # Jupyter
 .ipynb_checkpoints/
+
+# Vector Database
+vectorstore/chroma_db/
+
+# OS files
+.DS_Store
