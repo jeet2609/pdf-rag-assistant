@@ -60,6 +60,7 @@ def get_embedding_model() -> HuggingFaceEmbeddings:
 		) from error
 
 
+# No need of this, as we are doing this in create_vector_store in file vector_store.py
 def generate_embeddings(
 	documents: list[Document],
 	embedding_model: HuggingFaceEmbeddings
