@@ -1,0 +1,154 @@
+"""
+FAISS Vector Store Module
+
+Responsibilities:
+- Create a FAISS vector store from document chunks
+- Save the vector store locally
+- Load an existing vector store
+- Create a retriever for similarity search
+"""
+
+from pathlib import Path
+
+from langchain_community.vectorstores import FAISS
+from langchain_core.documents import Document
+from langchain_core.embeddings import Embeddings
+
+DEFAULT_INDEX_PATH = Path("vectorstore/faiss_index")
+
+def create_vector_store(
+	documents: list[Document],
+	embedding_model: Embeddings
+) -> FAISS:
+	"""
+	Create a FAISS vector store from document chunks.
+
+	Args:
+		documents:
+			List of LangChain Document chunks.
+
+		embedding_model:
+			Embedding model used to generate vector embeddings.
+
+	Returns:
+        FAISS vector store.
+	"""
+
+	if not documents:
+		raise ValueError(
+			"Document list cannot be empty."
+		)
+
+	try:
+		vectore_store = FAISS.from_documents(
+			documents=documents,
+			embedding=embedding_model
+		)
+
+		return vectore_store
+
+	except Exception as error:
+		raise Exception(
+			f"Failed to create FAISS vector store: {error}"
+		) from error
+
+
+
+def save_vector_store(
+	vector_store: FAISS,
+	save_path: Path = DEFAULT_INDEX_PATH
+) -> None:
+	"""
+	Save FAISS index to disk.
+
+	Args:
+		vector_store:
+			FAISS vector store.
+
+		save_path:
+			Directory where the index will be saved.
+	"""
+
+	try:
+		save_path.mkdir(parents=True, exist_ok=True)
+
+		vector_store.save_local(
+			folder_path=str(save_path)
+		)
+		
+	except Exception as error:
+		raise Exception(
+			f"Failed to save FAISS index: {error}"
+		) from error
+
+
+def load_vector_store(
+	embedding_model: Embeddings,
+	load_path: Path = DEFAULT_INDEX_PATH
+) -> FAISS:
+	"""
+	Load an existing FAISS vector store.
+
+	Args:
+		embedding_model:
+			Same embedding model used while creating the index.
+
+		load_path:
+			Location of saved FAISS index.
+
+	Returns:
+		Loaded FAISS vector store.
+	"""
+
+	if not load_path.exists():
+		raise ValueError(
+			f"FAISS index not found: {load_path}"
+		)
+
+	try:
+		vectore_store = FAISS.load_local(
+			folder_path=str(load_path),
+			embeddings=embedding_model,
+			allow_dangerous_deserialization=True,
+		)
+
+		return vectore_store
+		
+	except Exception as error:
+		raise Exception(
+			f"Failed to load FAISS index: {error}"
+		) from error
+
+
+def create_retriver(
+	vector_store: FAISS,
+	*,
+	k : int = 4
+):
+	"""
+	Create a retriever from the FAISS vector store.
+
+	Args:
+		vector_store:
+			Loaded FAISS vector store.
+
+		k:
+			Number of chunks to retrieve.
+
+	Returns:
+		LangChain Retriever.
+	"""
+
+	return vector_store.as_retriever(
+		search_type="similarity",
+        search_kwargs={
+            "k": k
+        },
+	)
+
+
+# Why embedding_model is required ?
+# Short answer
+# FAISS itself does not create embeddings.
+# FAISS only stores and searches vectors.
+# So we must provide an embedding model whenever we create or query the FAISS index.
