@@ -10,14 +10,14 @@ This module is the first step in the RAG pipeline.
 """
 
 from pathlib import Path
-from typing import List
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 
+
 def load_pdf(
 	file_path : str
-) -> List[Document]:
+) -> list[Document]:
 	"""
 	Load a PDF file and convert it into LangChain Document objects.
 
@@ -70,13 +70,13 @@ def load_pdf(
 		return documents
 
 	except Exception as error:
-		raise Exception(
+		raise Exception(  # noqa: TRY002
 			f"Failed to load PDF '{file_path}': {error}"
 		) from error
 
 
 def get_pdf_metadata(
-		documents: List[Document]
+		documents: list[Document]
 ) -> dict:
 	"""
 	Extract basic metadata from loaded PDF documents.

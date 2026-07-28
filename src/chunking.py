@@ -7,16 +7,16 @@ Responsible for:
 - Preparing documents for embedding generation
 """
 
-from typing import List
 
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+
 def split_document(
-	documents: List[Document],
+	documents: list[Document],
 	chunk_size: int = 1000,
 	chunk_overlap: int = 200
-) -> List[Document]:
+) -> list[Document]:
 	"""
 	Split documents into smaller chunks.
 
