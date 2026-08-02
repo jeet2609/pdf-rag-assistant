@@ -31,7 +31,7 @@ def create_vector_store(
 			Embedding model used to generate vector embeddings.
 
 	Returns:
-        FAISS vector store.
+		FAISS vector store.
 	"""
 
 	if not documents:
@@ -118,33 +118,6 @@ def load_vector_store(
 		raise Exception(
 			f"Failed to load FAISS index: {error}"
 		) from error
-
-
-def create_retriver(
-	vector_store: FAISS,
-	*,
-	k : int = 4
-):
-	"""
-	Create a retriever from the FAISS vector store.
-
-	Args:
-		vector_store:
-			Loaded FAISS vector store.
-
-		k:
-			Number of chunks to retrieve.
-
-	Returns:
-		LangChain Retriever.
-	"""
-
-	return vector_store.as_retriever(
-		search_type="similarity",
-        search_kwargs={
-            "k": k
-        },
-	)
 
 
 # Why embedding_model is required ?
