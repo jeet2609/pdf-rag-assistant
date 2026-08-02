@@ -14,7 +14,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 
-DEFAULT_INDEX_PATH = Path("vectorstore/faiss_index")
+DEFAULT_INDEX_PATH = Path("./../vectorstore/faiss_index")
 
 def create_vector_store(
 	documents: list[Document],
@@ -48,7 +48,7 @@ def create_vector_store(
 		return vectore_store
 
 	except Exception as error:
-		raise Exception(
+		raise Exception(  # noqa: TRY002
 			f"Failed to create FAISS vector store: {error}"
 		) from error
 
@@ -77,7 +77,7 @@ def save_vector_store(
 		)
 		
 	except Exception as error:
-		raise Exception(
+		raise Exception(  # noqa: TRY002
 			f"Failed to save FAISS index: {error}"
 		) from error
 
@@ -115,7 +115,7 @@ def load_vector_store(
 		return vectore_store
 		
 	except Exception as error:
-		raise Exception(
+		raise Exception(  # noqa: TRY002
 			f"Failed to load FAISS index: {error}"
 		) from error
 

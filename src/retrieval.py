@@ -13,7 +13,6 @@ from langchain_core.vectorstores import VectorStoreRetriever
 
 def create_retrival(
 	vector_store: FAISS,
-	*,
 	k : int = 4
 ) -> VectorStoreRetriever:
 	"""

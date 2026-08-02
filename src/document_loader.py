@@ -76,7 +76,7 @@ def load_pdf(
 
 
 def get_pdf_metadata(
-		documents: list[Document]
+	documents: list[Document]
 ) -> dict:
 	"""
 	Extract basic metadata from loaded PDF documents.
