@@ -38,7 +38,7 @@ def create_retrival(
 
 def retrive_documents(
 	question: str,
-	retriver: VectorStoreRetriever
+	retriever: VectorStoreRetriever
 ) -> list[Document]:
 	"""
 	Retrieve the most relevant document chunks for a question.
@@ -59,7 +59,7 @@ def retrive_documents(
 
 	try:
 
-		documents = retriver.invoke(question)
+		documents = retriever.invoke(question)
 		
 		return documents
 
