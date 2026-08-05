@@ -6,11 +6,13 @@ Responsibilities:
 - Retrieve relevant document chunks
 - Build the prompt
 - Generate grounded answers
+- Return answer with source documents
 """
 
 import os
 
 from dotenv import load_dotenv
+from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_google_genai import ChatGoogleGenerativeAI
 from src.prompts import get_rag_prompt
@@ -99,6 +101,69 @@ def generate_answer(
 		response = llm.invoke(formatted_prompt)
 
 		return response.content
+
+	except Exception as error:
+		raise RuntimeError(
+			f"Failed to generate answer: {error}"
+		) from error
+
+
+def generate_answer_with_sources(
+	question: str,
+	retriever: VectorStoreRetriever,
+	llm: ChatGoogleGenerativeAI
+) -> dict:
+	"""
+	Generate an answer using the RAG pipeline.
+
+	Args:
+		question:
+			User question.
+
+		retriever:
+			Configured LangChain retriever.
+
+		llm:
+			Configured Gemini model.
+
+	Returns:
+		Dictionary containing:
+		- Generated answer
+		- Retrieved source documents
+	"""
+
+	if not question.strip():
+		raise ValueError(
+			"Question cannot be empty"
+		)
+
+	try:
+		# Retrieve relevant documents
+		documents: list[Document] = retriever.invoke(question)
+
+		# Combine retrieved chunks into one context string
+		context = "\n\n".join(
+			document.page_content
+			for document in documents
+		)
+
+		# Build prompt
+		prompt = get_rag_prompt()
+
+		formatted_prompt = prompt.invoke(
+			{
+				"context": context,
+				"question": question
+			}
+		)
+
+		# Generate response
+		response = llm.invoke(formatted_prompt)
+
+		return {
+			"answer": response.content,
+			"document": documents
+		}
 
 	except Exception as error:
 		raise RuntimeError(
