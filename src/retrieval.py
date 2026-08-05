@@ -11,7 +11,7 @@ from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStoreRetriever
 
 
-def create_retrival(
+def create_retriever(
 	vector_store: FAISS,
 	k : int = 4
 ) -> VectorStoreRetriever:
