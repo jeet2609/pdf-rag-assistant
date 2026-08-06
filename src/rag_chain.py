@@ -161,7 +161,7 @@ def generate_answer_with_sources(
 		response = llm.invoke(formatted_prompt)
 
 		return {
-			"answer": response.content,
+			"answer": str(response.text),
 			"document": documents
 		}
 
