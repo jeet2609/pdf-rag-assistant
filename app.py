@@ -19,6 +19,8 @@ import streamlit as st
 from src.chunking import split_document
 from src.document_loader import get_pdf_metadata, load_pdf
 from src.embeddings import get_embedding_model
+from src.rag_chain import generate_answer_with_sources, load_llm
+from src.retrieval import create_retriever
 from src.vector_store import create_vector_store
 
 # --------------------------------------------------
@@ -39,6 +41,15 @@ if "embedding_model" not in st.session_state:
 
 if "vector_store" not in st.session_state:
 	st.session_state.vector_store = None
+
+if "retriever" not in st.session_state:
+	st.session_state.retriever = None
+
+if "llm" not in st.session_state:
+	st.session_state.llm = None
+
+if "result" not in st.session_state:
+	st.session_state.result = None
 
 # --------------------------------------------------
 # Page Configuration
@@ -97,7 +108,7 @@ with st.sidebar:
 
 			**LLM**
 
-			`Google Gemini`
+			`Google Gemini: gemini-3.5-flash`
 		"""
     )
 
@@ -134,12 +145,19 @@ if uploaded_file is not None:
 				documents=chunks,
 				embedding_model=embedding_model
 			)
+			retriever = create_retriever(
+				vector_store=vector_store,
+				k=4
+			)
+			llm = load_llm()
 
 		st.session_state.documents = documents
 		st.session_state.metadata = metadata
 		st.session_state.chunks = chunks
 		st.session_state.embedding_model = embedding_model
 		st.session_state.vector_store = vector_store
+		st.session_state.retriever = retriever
+		st.session_state.llm = llm
 
 		st.success("PDF loaded successfully. FAISS index created.")
 
@@ -198,9 +216,30 @@ st.divider()
 st.subheader("Answer")
 
 if ask_button:
-	st.info(
-		"RAG pipeline will be connected in the next step."
-	)
+	if st.session_state.vector_store is None:
+		st.warning(
+			"Please upload a PDF first."
+		)
+
+	elif not question.strip():
+		st.warning(
+			"Please enter a question."
+		)
+
+	else:
+		with st.spinner("Generating answer..."):
+
+			result = generate_answer_with_sources(
+				question=question,
+				retriever=st.session_state.retriever,
+				llm=st.session_state.llm
+			)
+
+			st.success("Answer generated successfully.")
+
+			st.markdown(result["answer"])
+
+			st.session_state.result = result
 else:
 	st.empty()
 
@@ -212,9 +251,23 @@ st.divider()
 
 st.subheader("Source Citations")
 
-st.info(
-	"Source will appear here after the RAG pipeline is connected."
-)
+if st.session_state.result is not None:
+
+	for index, document in enumerate(
+		st.session_state.result["documents"],
+		start=1
+	):
+		
+		metadata = document.metadata
+
+		st.markdown(
+			f"""
+				**Source {index}**
+
+				- **Page:** {metadata['page'] + 1}
+				- **Chunk ID:** {metadata['chunk_id']}
+			"""
+		)
 
 # --------------------------------------------------
 # Retrieved Chunks
@@ -224,6 +277,13 @@ st.divider()
 
 st.subheader("Retrieved Chunks")
 
-st.info(
-	"Retrieved documents chunks will appear here."
-)
+if st.session_state.result is not None:
+
+	for index, document in enumerate(
+		st.session_state.result["documents"],
+		start=1
+	):
+		with st.expander(
+			f"Chunk {index}"
+		):
+			st.write(document.page_content)
