@@ -12,7 +12,21 @@ Commit 1:
 - Placeholders for answer and citations
 """
 
+import tempfile
+from pathlib import Path
+
 import streamlit as st
+from src.document_loader import get_pdf_metadata, load_pdf
+
+# --------------------------------------------------
+# Session State
+# --------------------------------------------------
+
+if "documents" not in st.session_state:
+	st.session_state.documents = None
+
+if "metadata" not in st.session_state:
+	st.session_state.metadata = None
 
 # --------------------------------------------------
 # Page Configuration
@@ -84,6 +98,52 @@ uploaded_file = st.file_uploader(
 	type=["pdf"],
 )
 
+if uploaded_file is not None:
+
+	# Why use tempfile?
+	# Your loader expects a file path: load_pdf(pdf_path)
+	# However, st.file_uploader() returns an UploadedFile object in memory, not a path. Writing it to a temporary file bridges that gap without modifying your existing production code.
+
+	with tempfile.NamedTemporaryFile(
+		delete=False,
+		suffix=".pdf",
+	) as temp_file:
+		temp_file.write(uploaded_file.getbuffer())
+		pdf_path = Path(temp_file.name)
+
+	try:
+		with st.spinner("Loading PDF..."):
+
+			documents = load_pdf(pdf_path)
+			metadata = get_pdf_metadata(documents)
+
+		st.session_state.documents = documents
+		st.session_state.metadata = metadata
+
+		st.success("PDF loaded successfully.")
+
+	except Exception as error:  # noqa: BLE001
+		st.error(f"Failed to load PDF. \n{error}")
+
+if st.session_state.metadata is not None and uploaded_file is not None:
+	metadata = st.session_state.metadata
+
+	st.subheader("PDF Information")
+
+	col1, col2 = st.columns(2)
+
+	with col1:
+		st.metric(
+			"File Name",
+			uploaded_file.name
+		)
+
+	with col2:
+		st.metric(
+			"Total Pages",
+			metadata["total_page"]
+		)
+
 # --------------------------------------------------
 # Question Section
 # --------------------------------------------------
@@ -99,8 +159,7 @@ question = st.text_input(
 
 ask_button = st.button(
 	label="Ask Question",
-	type="primary",
-	use_container_width=True,
+	type="primary"
 )
 
 # --------------------------------------------------
