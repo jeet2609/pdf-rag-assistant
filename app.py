@@ -16,7 +16,10 @@ import tempfile
 from pathlib import Path
 
 import streamlit as st
+from src.chunking import split_document
 from src.document_loader import get_pdf_metadata, load_pdf
+from src.embeddings import get_embedding_model
+from src.vector_store import create_vector_store
 
 # --------------------------------------------------
 # Session State
@@ -27,6 +30,15 @@ if "documents" not in st.session_state:
 
 if "metadata" not in st.session_state:
 	st.session_state.metadata = None
+
+if "chunks" not in st.session_state:
+	st.session_state.chunks = None
+
+if "embedding_model" not in st.session_state:
+	st.session_state.embedding_model = None
+
+if "vector_store" not in st.session_state:
+	st.session_state.vector_store = None
 
 # --------------------------------------------------
 # Page Configuration
@@ -116,21 +128,30 @@ if uploaded_file is not None:
 
 			documents = load_pdf(pdf_path)
 			metadata = get_pdf_metadata(documents)
+			chunks = split_document(documents)
+			embedding_model = get_embedding_model()
+			vector_store = create_vector_store(
+				documents=chunks,
+				embedding_model=embedding_model
+			)
 
 		st.session_state.documents = documents
 		st.session_state.metadata = metadata
+		st.session_state.chunks = chunks
+		st.session_state.embedding_model = embedding_model
+		st.session_state.vector_store = vector_store
 
-		st.success("PDF loaded successfully.")
+		st.success("PDF loaded successfully. FAISS index created.")
 
 	except Exception as error:  # noqa: BLE001
 		st.error(f"Failed to load PDF. \n{error}")
 
-if st.session_state.metadata is not None and uploaded_file is not None:
+if st.session_state.metadata is not None and uploaded_file is not None and st.session_state.chunks is not None:
 	metadata = st.session_state.metadata
 
 	st.subheader("PDF Information")
 
-	col1, col2 = st.columns(2)
+	col1, col2, col3 = st.columns(3)
 
 	with col1:
 		st.metric(
@@ -142,6 +163,12 @@ if st.session_state.metadata is not None and uploaded_file is not None:
 		st.metric(
 			"Total Pages",
 			metadata["total_page"]
+		)
+
+	with col3:
+		st.metric(
+			"Chunks",
+			len(st.session_state.chunks)
 		)
 
 # --------------------------------------------------
