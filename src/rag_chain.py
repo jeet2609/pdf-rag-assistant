@@ -10,6 +10,7 @@ Responsibilities:
 """
 
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from langchain_core.documents import Document
@@ -18,7 +19,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from src.prompts import get_rag_prompt
 
 # Load environment variables
-load_dotenv("./../.env")
+project_root = Path(__file__).resolve().parent.parent
+load_dotenv(project_root / ".env")
 
 DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
 
@@ -162,7 +164,7 @@ def generate_answer_with_sources(
 
 		return {
 			"answer": str(response.text),
-			"document": documents
+			"documents": documents
 		}
 
 	except Exception as error:
