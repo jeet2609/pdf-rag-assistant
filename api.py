@@ -9,6 +9,10 @@ Run this using command: uvicorn api:app --reload
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, status
+from langchain_community.vectorstores import FAISS
+from langchain_core.embeddings import Embeddings
+from langchain_core.vectorstores import VectorStoreRetriever
+from langchain_google_genai import ChatGoogleGenerativeAI
 from schemas.request import IndexRequest, QueryRequest
 from schemas.response import (
 	HealthResponse,
@@ -41,13 +45,13 @@ app = FastAPI(
 # RAG Application State
 # --------------------------------------------------
 
-documents = None
-metadata = None
-chunks = None
-embedding_model = None
-vector_store = None
-retriever = None
-llm = None
+documents: list | None = None
+metadata: dict | None = None
+chunks: list | None = None
+embedding_model: Embeddings | None = None
+vector_store: FAISS | None = None
+retriever: VectorStoreRetriever | None = None
+llm: ChatGoogleGenerativeAI | None = None
 
 
 # --------------------------------------------------
