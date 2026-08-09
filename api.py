@@ -9,6 +9,13 @@ Run this using command: uvicorn api:app --reload
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, status
+from schemas.request import IndexRequest, QueryRequest
+from schemas.response import (
+	HealthResponse,
+	IndexResponse,
+	QueryResponse,
+	UploadResponse,
+)
 from src.chunking import split_document
 from src.document_loader import get_pdf_metadata, load_pdf
 from src.embeddings import get_embedding_model
@@ -61,9 +68,10 @@ UPLOAD_DIRECTORY.mkdir(
 
 @app.get(
 	"/health",
-	status_code=status.HTTP_200_OK
+	status_code=status.HTTP_200_OK,
+	response_model=HealthResponse
 )
-def health_check() -> dict[str, str]:
+def health_check() -> HealthResponse:
 	"""
 	Check whether the API is running.
 
@@ -71,10 +79,10 @@ def health_check() -> dict[str, str]:
 		API health status.
 	"""
 
-	return {
-		"status": "healthy",
-		"message": "PDF RAG Assistant API is running."
-	}
+	return HealthResponse(
+		status="healthy",
+		message="PDF RAG Assistant API is running."
+	)
 
 
 # --------------------------------------------------
@@ -83,11 +91,12 @@ def health_check() -> dict[str, str]:
 
 @app.post(
 	"/upload",
-	status_code=status.HTTP_201_CREATED
+	status_code=status.HTTP_201_CREATED,
+	response_model=UploadResponse
 )
 async def upload_pdf(
 	file: UploadFile = File(...)  # noqa: B008	(The ... means no default value — the file is required.)
-) -> dict[str, str]:
+) -> UploadResponse:
 	"""
 	Upload a PDF document.
 
@@ -136,12 +145,11 @@ async def upload_pdf(
 	finally:
 		await file.close()
 
-	return {
-		"status": "success",
-		"message": "PDF uploaded successfully.",
-		"filename": safe_filename,
-		"path": str(file_path)
-	}
+	return UploadResponse(
+		status="success",
+		message="PDF uploaded successfully.",
+		filename=safe_filename
+	)
 
 
 # --------------------------------------------------
@@ -150,17 +158,18 @@ async def upload_pdf(
 
 @app.post(
 	"/index",
-	status_code=status.HTTP_201_CREATED
+	status_code=status.HTTP_201_CREATED,
+	response_model=IndexResponse
 )
 def create_index(
-	filename: str
-) -> dict[str, str | int]:
+	request: IndexRequest
+) -> IndexResponse:
 	"""
 	Create a FAISS index for an uploaded PDF.
 
 	Args:
-		filename:
-			Name of the previously uploaded PDF.
+		request:
+			Request containing the name of the previously uploaded PDF.
 
 	Returns:
 		Information about the created FAISS index.
@@ -170,7 +179,7 @@ def create_index(
 			If the PDF does not exist or indexing fails.
 	"""
 
-	# Used global here because we have assign values to these variables
+	# Use global because we assign values to these module-level variables.
 	global documents
 	global metadata
 	global chunks
@@ -179,12 +188,12 @@ def create_index(
 	global retriever
 	global llm
 
-	safe_filename = Path(filename).name
+	safe_filename = Path(request.filename).name
 
 	if not safe_filename.lower().endswith(".pdf"):
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
-			detail="Only PDF files are supported."
+			detail="Only PDF files are supported.",
 		)
 
 	pdf_path = UPLOAD_DIRECTORY / safe_filename
@@ -192,9 +201,7 @@ def create_index(
 	if not pdf_path.exists():
 		raise HTTPException(
 			status_code=status.HTTP_404_NOT_FOUND,
-			detail=(
-				f"PDF '{safe_filename}' was not found. Upload the PDF first."
-			)
+			detail=f"PDF '{safe_filename}' was not found. Upload the PDF first.",
 		)
 
 	try:
@@ -204,11 +211,11 @@ def create_index(
 		embedding_model = get_embedding_model()
 		vector_store = create_vector_store(
 			documents=chunks,
-			embedding_model=embedding_model
+			embedding_model=embedding_model,
 		)
 		retriever = create_retriever(
 			vector_store=vector_store,
-			k=4
+			k=4,
 		)
 		llm = load_llm()
 		
@@ -225,16 +232,16 @@ def create_index(
 
 		raise HTTPException(
 			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-			detail="Failed to create FAISS index."
+			detail="Failed to create FAISS index.",
 		) from error
 
-	return {
-		"status": "success",
-		"message": "FAISS index created successfully.",
-		"filename": safe_filename,
-		"pages": metadata["total_page"],
-		"chunks": len(chunks)
-	}
+	return IndexResponse(
+		status="success",
+		message="FAISS index created successfully.",
+		filename=safe_filename,
+		pages=metadata["total_page"],
+		chunks=len(chunks),
+	)
 
 
 # --------------------------------------------------
@@ -243,17 +250,18 @@ def create_index(
 
 @app.post(
 	"/query",
-	status_code=status.HTTP_200_OK
+	status_code=status.HTTP_200_OK,
+	response_model=QueryResponse,
 )
 def query_pdf(
-	question: str,
-) -> dict:
+	request: QueryRequest
+) -> QueryResponse:
 	"""
 	Ask a question about the indexed PDF.
 
 	Args:
-		question:
-			User's question.
+		request:
+			Request containing the user's question.
 
 	Returns:
 		Generated answer and source documents.
@@ -263,10 +271,10 @@ def query_pdf(
 			If no FAISS index exists or query generation fails.
 	"""
 
-	if not question.strip():
+	if not request.question.strip():
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
-			detail=("Question cannot be empty")
+			detail="Question cannot be empty",
 		)
 
 	if retriever is None or llm is None:
@@ -275,21 +283,22 @@ def query_pdf(
 			detail=(
 				"No FAISS index is available. "
 				"Upload a PDF and create an index first."
-			)
+			),
 		)
 
 	try:
 
 		result = generate_answer_with_sources(
-			question=question,
+			question=request.question,
 			retriever=retriever,
-			llm=llm
+			llm=llm,
 		)
 
 	except Exception as error:
+		print(f"############### {error} ###############")
 		raise HTTPException(
 			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-			detail="Failed to generate an asnwer."
+			detail="Failed to generate an answer.",
 		) from error
 
 	sources = []
@@ -298,13 +307,13 @@ def query_pdf(
 		sources.append(
 			{
 				"page": document.metadata.get("page", 0) + 1,
-				"chunk_id": document.metadata.get("chunk_id")
+				"chunk_id": document.metadata.get("chunk_id"),
 			}
 		)
 
-	return {
-		"status": "success",
-		"question": question,
-		"answer": result["answer"],
-		"sources": sources
-	}
+	return QueryResponse(
+		status="success",
+		question=request.question,
+		answer=result["answer"],
+		sources=sources,
+	)
