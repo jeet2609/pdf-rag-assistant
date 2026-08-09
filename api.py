@@ -8,7 +8,12 @@ Run this using command: uvicorn api:app --reload
 
 from pathlib import Path
 
-from fastapi import FastAPI, File, UploadFile, status, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile, status
+from src.chunking import split_document
+from src.document_loader import get_pdf_metadata, load_pdf
+from src.embeddings import get_embedding_model
+from src.retrieval import create_retriever
+from src.vector_store import create_vector_store
 
 # --------------------------------------------------
 # FastAPI Application
@@ -22,6 +27,18 @@ app = FastAPI(
 	),
 	version="1.0.0"
 )
+
+
+# --------------------------------------------------
+# RAG Application State
+# --------------------------------------------------
+
+documents = None
+metadata = None
+chunks = None
+embedding_model = None
+vector_store = None
+retriever = None
 
 
 # --------------------------------------------------
@@ -122,4 +139,93 @@ async def upload_pdf(
 		"message": "PDF uploaded successfully.",
 		"filename": safe_filename,
 		"path": str(file_path)
+	}
+
+
+# --------------------------------------------------
+# FAISS Index Creation
+# --------------------------------------------------
+
+@app.post(
+	"/index",
+	status_code=status.HTTP_201_CREATED
+)
+def create_index(
+	filename: str
+) -> dict[str, str | int]:
+	"""
+	Create a FAISS index for an uploaded PDF.
+
+	Args:
+		filename:
+			Name of the previously uploaded PDF.
+
+	Returns:
+		Information about the created FAISS index.
+
+	Raises:
+		HTTPException:
+			If the PDF does not exist or indexing fails.
+	"""
+
+	global documents
+	global metadata
+	global chunks
+	global embedding_model
+	global vector_store
+	global retriever
+
+	safe_filename = Path(filename).name
+
+	if not safe_filename.lower().endswith(".pdf"):
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="Only PDF files are supported."
+		)
+
+	pdf_path = UPLOAD_DIRECTORY / safe_filename
+
+	if not pdf_path.exists():
+		raise HTTPException(
+			status_code=status.HTTP_404_NOT_FOUND,
+			detail=(
+				f"PDF '{safe_filename}' was not found. Upload the PDF first."
+			)
+		)
+
+	try:
+		documents = load_pdf(pdf_path)
+		metadata = get_pdf_metadata(documents)
+		chunks = split_document(documents)
+		embedding_model = get_embedding_model()
+		vector_store = create_vector_store(
+			documents=chunks,
+			embedding_model=embedding_model
+		)
+		retriever = create_retriever(
+			vector_store=vector_store,
+			k=4
+		)
+		
+	except Exception as error:
+
+		# Reset partially created state
+		documents = None
+		metadata = None
+		chunks = None
+		embedding_model = None
+		vector_store = None
+		retriever = None
+
+		raise HTTPException(
+			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			detail="Failed to create FAISS index."
+		) from error
+
+	return {
+		"status": "success",
+		"message": "FAISS index created successfully.",
+		"filename": safe_filename,
+		"pages": metadata["total_page"],
+		"chunks": len(chunks)
 	}
