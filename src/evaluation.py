@@ -7,6 +7,7 @@ Responsibilities:
 - Evaluate RAG responses
 """
 
+from config.settings import settings
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import cos_sim
 from src.embeddings import get_device
@@ -21,7 +22,7 @@ def load_similarity_model() -> SentenceTransformer:
 	"""
 
 	return SentenceTransformer(
-		"sentence-transformers/all-MiniLM-L6-v2",
+		settings.sentence_transformers_model,
 		device=get_device()
 	)
 

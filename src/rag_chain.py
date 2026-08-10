@@ -12,6 +12,7 @@ Responsibilities:
 import os
 from pathlib import Path
 
+from config.settings import settings
 from dotenv import load_dotenv
 from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -22,10 +23,8 @@ from src.prompts import get_rag_prompt
 project_root = Path(__file__).resolve().parent.parent
 load_dotenv(project_root / ".env")
 
-DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
-
 def load_llm(
-	gemini_model: str = DEFAULT_GEMINI_MODEL
+	gemini_model: str = settings.llm_model_name
 ) -> ChatGoogleGenerativeAI:
 	"""
 	Load the Gemini language model.

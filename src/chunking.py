@@ -8,14 +8,15 @@ Responsible for:
 """
 
 
+from config.settings import settings
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 def split_document(
 	documents: list[Document],
-	chunk_size: int = 1000,
-	chunk_overlap: int = 200
+	chunk_size: int = settings.chunk_size,
+	chunk_overlap: int = settings.chunk_overlap
 ) -> list[Document]:
 	"""
 	Split documents into smaller chunks.

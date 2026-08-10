@@ -6,6 +6,7 @@ Responsibilities:
 - Retrieve relevant document chunks
 """
 
+from config.settings import settings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -13,7 +14,7 @@ from langchain_core.vectorstores import VectorStoreRetriever
 
 def create_retriever(
 	vector_store: FAISS,
-	k : int = 4
+	k : int = settings.retrievel_k
 ) -> VectorStoreRetriever:
 	"""
 	Create a retriever from a FAISS vector store.

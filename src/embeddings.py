@@ -8,6 +8,7 @@ Responsible for:
 """
 
 import torch
+from config.settings import settings
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 
@@ -42,7 +43,7 @@ def get_embedding_model() -> HuggingFaceEmbeddings:
 
 		print(f"Using device: {device}")
 
-		model_name = "BAAI/bge-small-en-v1.5"
+		model_name = settings.embedding_model_name
 		model_kwargs = {"device": device}
 		encode_kwargs = {"normalize_embeddings": True}
 

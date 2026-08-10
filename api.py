@@ -8,6 +8,7 @@ Run this using command: uvicorn api:app --reload
 
 from pathlib import Path
 
+from config.settings import settings
 from fastapi import FastAPI, File, HTTPException, UploadFile, status
 from langchain_community.vectorstores import FAISS
 from langchain_core.embeddings import Embeddings
@@ -37,7 +38,7 @@ app = FastAPI(
 		"REST API for the PDF-based "
 		"Retrieval Augmented Generation assistant."
 	),
-	version="1.0.0"
+	version=settings.app_version
 )
 
 
@@ -52,18 +53,6 @@ embedding_model: Embeddings | None = None
 vector_store: FAISS | None = None
 retriever: VectorStoreRetriever | None = None
 llm: ChatGoogleGenerativeAI | None = None
-
-
-# --------------------------------------------------
-# Configuration
-# --------------------------------------------------
-
-UPLOAD_DIRECTORY = Path("./data/pdfs")
-
-UPLOAD_DIRECTORY.mkdir(
-	parents=True,
-	exist_ok=True
-)
 
 
 # --------------------------------------------------
@@ -124,7 +113,7 @@ async def upload_pdf(
 		)
 	
 	safe_filename = Path(file.filename).name
-	file_path = UPLOAD_DIRECTORY / safe_filename
+	file_path = settings.upload_directory / safe_filename
 
 	try:
 		file_content = await file.read()
@@ -200,7 +189,7 @@ def create_index(
 			detail="Only PDF files are supported.",
 		)
 
-	pdf_path = UPLOAD_DIRECTORY / safe_filename
+	pdf_path = settings.upload_directory / safe_filename
 
 	if not pdf_path.exists():
 		raise HTTPException(
@@ -219,7 +208,6 @@ def create_index(
 		)
 		retriever = create_retriever(
 			vector_store=vector_store,
-			k=4,
 		)
 		llm = load_llm()
 		
@@ -299,7 +287,6 @@ def query_pdf(
 		)
 
 	except Exception as error:
-		print(f"############### {error} ###############")
 		raise HTTPException(
 			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 			detail="Failed to generate an answer.",

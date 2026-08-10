@@ -10,11 +10,11 @@ Responsibilities:
 
 from pathlib import Path
 
+from config.settings import settings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 
-DEFAULT_INDEX_PATH = Path("./../vectorstore/faiss_index")
 
 def create_vector_store(
 	documents: list[Document],
@@ -56,7 +56,7 @@ def create_vector_store(
 
 def save_vector_store(
 	vector_store: FAISS,
-	save_path: Path = DEFAULT_INDEX_PATH
+	save_path: Path = settings.vector_store_directory
 ) -> None:
 	"""
 	Save FAISS index to disk.
@@ -70,7 +70,10 @@ def save_vector_store(
 	"""
 
 	try:
-		save_path.mkdir(parents=True, exist_ok=True)
+		save_path.mkdir(
+			parents=True,
+			exist_ok=True,
+		)
 
 		vector_store.save_local(
 			folder_path=str(save_path)
@@ -84,7 +87,7 @@ def save_vector_store(
 
 def load_vector_store(
 	embedding_model: Embeddings,
-	load_path: Path = DEFAULT_INDEX_PATH
+	load_path: Path = settings.vector_store_directory
 ) -> FAISS:
 	"""
 	Load an existing FAISS vector store.
