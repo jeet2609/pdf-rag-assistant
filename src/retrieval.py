@@ -14,7 +14,7 @@ from langchain_core.vectorstores import VectorStoreRetriever
 
 def create_retriever(
 	vector_store: FAISS,
-	k : int = settings.retrievel_k
+	k : int = settings.retrieval_k
 ) -> VectorStoreRetriever:
 	"""
 	Create a retriever from a FAISS vector store.

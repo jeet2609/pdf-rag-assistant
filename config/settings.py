@@ -6,6 +6,7 @@ Centralizes application settings and environment variables.
 
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # --------------------------------------------------
@@ -42,25 +43,35 @@ class Settings(BaseSettings):
 	# RAG Configuration
 	# --------------------------------------------------
 
-	chunk_size = 1000
-
-	chunk_overlap = 200
-
-	retrievel_k: int = 4
-
+	chunk_size: int = 1000
+	chunk_overlap: int = 200
+	retrieval_k: int = 4
 	embedding_model_name: str = (
 		"BAAI/bge-small-en-v1.5"
 	)
 
 	llm_model_name: str = "gemini-3.5-flash"
 
-	sentence_transformers_model = "sentence-transformers/all-MiniLM-L6-v2"
+	sentence_transformers_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 
 	# --------------------------------------------------
 	# Environment
 	# --------------------------------------------------
 
 	environment: str = "development"
+
+	# --------------------------------------------------
+	# API Keys
+	# --------------------------------------------------
+
+	# Required API key loaded from the GOOGLE_API_KEY environment variable in .env.
+	# Pydantic Settings automatically maps GOOGLE_API_KEY to google_api_key because,
+	# SettingsConfigDict uses case_sensitive=False for environment variable matching.
+	# Field(...) marks this setting as required, so application startup fails if GOOGLE_API_KEY is missing.
+	google_api_key: str = Field(
+		...,
+		description="Google Gemini API Key."
+	)
 
 	# --------------------------------------------------
 	# Pydantic Settings Configuration
@@ -84,4 +95,9 @@ settings = Settings()
 settings.upload_directory.mkdir(
 	parents=True,
 	exist_ok=True,
+)
+
+settings.vector_store_directory.mkdir(
+	parents=True,
+	exist_ok=True
 )

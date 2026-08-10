@@ -9,19 +9,12 @@ Responsibilities:
 - Return answer with source documents
 """
 
-import os
-from pathlib import Path
-
 from config.settings import settings
-from dotenv import load_dotenv
 from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_google_genai import ChatGoogleGenerativeAI
 from src.prompts import get_rag_prompt
 
-# Load environment variables
-project_root = Path(__file__).resolve().parent.parent
-load_dotenv(project_root / ".env")
 
 def load_llm(
 	gemini_model: str = settings.llm_model_name
@@ -37,17 +30,10 @@ def load_llm(
 		Configured Gemini chat model.
 	"""
 
-	api_key = os.getenv("GOOGLE_API_KEY")
-
-	if not api_key:
-		raise ValueError(
-			"GOOGLE_API_KEY not found in environment variables."
-		)
-
 	return ChatGoogleGenerativeAI(
 		model=gemini_model,
 		temperature=0,
-		api_key=api_key
+		api_key=settings.google_api_key
 	)
 
 
