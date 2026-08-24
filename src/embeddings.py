@@ -8,9 +8,10 @@ Responsible for:
 """
 
 import torch
-from config.settings import settings
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
+
+from config.settings import settings
 
 
 def get_device() -> str:

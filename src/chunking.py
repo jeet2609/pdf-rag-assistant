@@ -8,9 +8,10 @@ Responsible for:
 """
 
 
-from config.settings import settings
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+from config.settings import settings
 
 
 def split_document(

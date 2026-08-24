@@ -10,10 +10,11 @@ Responsibilities:
 
 from pathlib import Path
 
-from config.settings import settings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
+
+from config.settings import settings
 
 
 def create_vector_store(

@@ -9,10 +9,11 @@ Responsibilities:
 - Return answer with source documents
 """
 
-from config.settings import settings
 from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_google_genai import ChatGoogleGenerativeAI
+
+from config.settings import settings
 from src.prompts import get_rag_prompt
 
 

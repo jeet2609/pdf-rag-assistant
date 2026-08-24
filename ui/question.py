@@ -7,6 +7,7 @@ Responsibilities:
 """
 
 import streamlit as st
+
 from ui import constants
 
 
@@ -21,7 +22,7 @@ def render_question_section() -> tuple[str, bool]:
 	"""
 
 	question = st.text_input(
-		label="Ask a question",
+		label=constants.ASK_QUESTION_TEXT,
 		placeholder="Example: What architecture does BERT use?"
 	)
 

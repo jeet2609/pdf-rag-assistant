@@ -8,13 +8,14 @@ Run this using command: uvicorn api:app --reload
 
 from pathlib import Path
 
-from config.logging import get_logger
-from config.settings import settings
 from fastapi import FastAPI, File, HTTPException, UploadFile, status
 from langchain_community.vectorstores import FAISS
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_google_genai import ChatGoogleGenerativeAI
+
+from config.logging import get_logger
+from config.settings import settings
 from schemas.request import IndexRequest, QueryRequest
 from schemas.response import (
 	HealthResponse,

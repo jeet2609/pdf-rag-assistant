@@ -6,10 +6,11 @@ Responsibilities:
 - Retrieve relevant document chunks
 """
 
-from config.settings import settings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStoreRetriever
+
+from config.settings import settings
 
 
 def create_retriever(
