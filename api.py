@@ -14,6 +14,7 @@ from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+from config.exceptions import unexpected_exception_handler
 from config.logging import get_logger
 from config.settings import settings
 from schemas.request import IndexRequest, QueryRequest
@@ -43,6 +44,11 @@ app = FastAPI(
 		"Retrieval Augmented Generation assistant."
 	),
 	version=settings.app_version
+)
+
+app.add_exception_handler(
+	Exception,
+	unexpected_exception_handler,
 )
 
 logger.info(
@@ -157,9 +163,6 @@ async def upload_pdf(
 			"PDF uploaded successfully: %s",
 			safe_filename,
 		)
-
-	except HTTPException:
-		raise
 		
 	except OSError as error:
 		logger.exception(
@@ -310,8 +313,7 @@ def create_index(
 			settings.llm_model_name,
 		)
 		
-	except Exception as error:
-
+	except Exception:
 		logger.exception(
 			"Failed to create FAISS index for: %s",
 			safe_filename,
@@ -326,10 +328,9 @@ def create_index(
 		retriever = None
 		llm = None
 
-		raise HTTPException(
-			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-			detail="Failed to create FAISS index.",
-		) from error
+		# Let the global exception handler generate
+		# the final 500 response.
+		raise
 
 	logger.info(
 		"FAISS index creation completed successfully: %s",
@@ -395,27 +396,15 @@ def query_pdf(
 			),
 		)
 
-	try:
+	logger.info(
+		"Generating answer using the RAG pipeline."
+	)
 
-		logger.info(
-			"Generating answer using the RAG pipeline."
-		)
-
-		result = generate_answer_with_sources(
-			question=request.question,
-			retriever=retriever,
-			llm=llm,
-		)
-
-	except Exception as error:
-		logger.exception(
-			"Failed to generate an answer."
-		)
-
-		raise HTTPException(
-			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-			detail="Failed to generate an answer.",
-		) from error
+	result = generate_answer_with_sources(
+		question=request.question,
+		retriever=retriever,
+		llm=llm,
+	)
 
 	sources = []
 
