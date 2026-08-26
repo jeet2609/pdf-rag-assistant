@@ -11,39 +11,25 @@ The application uses semantic search to retrieve relevant PDF chunks and a Large
 The PDF RAG Assistant follows a complete Retrieval Augmented Generation pipeline:
 
 $$
-\text{PDF Upload}
-\\
-\downarrow
-\\
-\text{PDF Text Extraction}
-\\
-\downarrow
-\\
-\text{Document Chunking}
-\\
-\downarrow
-\\
-\text{Text Embeddings}
-\\
-\downarrow
-\\
-\text{FAISS Vector Store}
-\\
-\downarrow
-\\
-\text{Similarity Retrieval}
-\\
-\downarrow
-\\
-\text{Relevant Context}
-\\
-\downarrow
-\\
-\text{Gemini LLM}
-\\
-\downarrow
-\\
+\begin{gathered}
+\text{PDF Upload} \\
+\downarrow \\
+\text{PDF Text Extraction} \\
+\downarrow \\
+\text{Document Chunking} \\
+\downarrow \\
+\text{Text Embeddings} \\
+\downarrow \\
+\text{FAISS Vector Store} \\
+\downarrow \\
+\text{Similarity Retrieval} \\
+\downarrow \\
+\text{Relevant Context} \\
+\downarrow \\
+\text{Gemini LLM} \\
+\downarrow \\
 \text{Answer + Source Citations}
+\end{gathered}
 $$
 
 The application is designed to provide answers grounded in the uploaded PDF rather than relying only on the LLM's general knowledge.
@@ -94,27 +80,19 @@ The `/index` endpoint creates the searchable representation of the uploaded PDF.
 The indexing pipeline is:
 
 $$
-\text{PDF}
-\\
-\downarrow
-\\
-\text{Text Extraction}
-\\
-\downarrow
-\\
-\text{Chunking}
-\\
-\downarrow
-\\
-\text{Embedding Generation}
-\\
-\downarrow
-\\
-\text{FAISS Index}
-\\
-\downarrow
-\\
+\begin{gathered}
+\text{PDF} \\
+\downarrow \\
+\text{Text Extraction} \\
+\downarrow \\
+\text{Chunking} \\
+\downarrow \\
+\text{Embedding Generation} \\
+\downarrow \\
+\text{FAISS Index} \\
+\downarrow \\
 \text{Persistent Storage}
+\end{gathered}
 $$
 
 ### 3. Retrieval
@@ -153,7 +131,7 @@ $$
 \text{Text Embeddings} \\
 \downarrow \\
 \text{FAISS Vector Store} \\
-\\[10pt]
+\downarrow \\
 \text{User Question} \\
 \downarrow \\
 \text{Semantic Retrieval} \\
@@ -176,7 +154,7 @@ $$
 - FAISS
 - HuggingFace Embeddings
 - Gemini LLM
-- PyPDF
+- pypdf
 - Pydantic
 - Uvicorn
 
@@ -418,13 +396,15 @@ Before creating a new index, the application checks whether the requested PDF ma
 If both conditions match, re-indexing is skipped.
 
 $$
+\begin{gathered}
 \text{Same PDF} \\
-   + \\
++ \\
 \text{Same modification time} \\
-   + \\
++ \\
 \text{Existing retriever} \\
 \downarrow \\
 \text{Skip re-indexing}
+\end{gathered}
 $$
 
 This prevents unnecessary embedding generation and FAISS index creation.
