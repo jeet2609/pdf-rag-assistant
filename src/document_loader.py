@@ -10,13 +10,21 @@ This module is the first step in the RAG pipeline.
 """
 
 from pathlib import Path
+from typing import TypedDict
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 
 
+class PDFMetadata(TypedDict):
+	"""Metadata extracted from a PDF document."""
+
+	total_page: int
+	source: str | None
+
+
 def load_pdf(
-	file_path : str
+	file_path: str | Path,
 ) -> list[Document]:
 	"""
 	Load a PDF file and convert it into LangChain Document objects.
@@ -24,60 +32,57 @@ def load_pdf(
 	Each page of the PDF becomes a separate Document object.
 
 	Args:
-		file_path (str):
+		file_path:
 			Path to the PDF file.
 
 	Returns:
-		List[Document]:
-			List of LangChain Document objects containing:
-			- page_content: Extracted text
-			- metadata: Source information and page number
+		List of LangChain Document objects containing:
+		- page_content: Extracted text
+		- metadata: Source information and page number
 
 	Raises:
 		FileNotFoundError:
-			If PDF file does not exist.
+			If the PDF file does not exist.
 
 		ValueError:
-			If provided file is not a PDF.
+			If the provided file is not a PDF or
+			no documents are loaded.
 
 		Exception:
-			For unexpected loading failures.
-    """
+			If an unexpected PDF loading error occurs.
+	"""
 
 	pdf_path = Path(file_path)
 
 	# Validate file existence
 	if not pdf_path.exists():
-		raise ValueError(
+		raise FileNotFoundError(
 			f"PDF file not found: {pdf_path}"
 		)
 
 	# Validate file extension
-	if pdf_path.suffix.lower() != '.pdf':
+	if pdf_path.suffix.lower() != ".pdf":
 		raise ValueError(
 			"Only PDF files are supported."
 		)
 
-	try:
-		# LangChain PDF loader
-		loader = PyPDFLoader(
-			str(pdf_path)
+	# Load PDF using LangChain
+	loader = PyPDFLoader(str(pdf_path))
+
+	# Extract pages as Document objects
+	documents = loader.load()
+
+	if not documents:
+		raise ValueError(
+			f"No content could be extracted from PDF: {pdf_path}"
 		)
 
-		# Extract pages as Document objects
-		documents = loader.load()
-
-		return documents
-
-	except Exception as error:
-		raise Exception(  # noqa: TRY002
-			f"Failed to load PDF '{file_path}': {error}"
-		) from error
+	return documents
 
 
 def get_pdf_metadata(
-	documents: list[Document]
-) -> dict:
+	documents: list[Document],
+) -> PDFMetadata:
 	"""
 	Extract basic metadata from loaded PDF documents.
 
@@ -87,12 +92,18 @@ def get_pdf_metadata(
 
 	Returns:
 		Dictionary containing PDF information.
-    """
+
+	Raises:
+		ValueError:
+			If no documents are provided.
+	"""
 
 	if not documents:
-		return {}
+		raise ValueError(
+			"Cannot extract metadata from an empty document list."
+		)
 
 	return {
 		"total_page": len(documents),
-		"source": documents[0].metadata.get("source")
+		"source": documents[0].metadata.get("source"),
 	}

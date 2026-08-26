@@ -6,10 +6,13 @@ Responsibilities:
 - Retrieve relevant document chunks
 - Build the prompt
 - Generate grounded answers
-- Return answer with source documents
+- Return answers with source documents
 """
 
+from typing import TypedDict
+
 from langchain_core.documents import Document
+from langchain_core.messages import AIMessage
 from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -17,15 +20,24 @@ from config.settings import settings
 from src.prompts import get_rag_prompt
 
 
+class RAGResult(TypedDict):
+	"""
+	Type definition for the RAG pipeline result.
+	"""
+
+	answer: str
+	documents: list[Document]
+
+
 def load_llm(
-	gemini_model: str = settings.llm_model_name
+	gemini_model: str = settings.llm_model_name,
 ) -> ChatGoogleGenerativeAI:
 	"""
 	Load the Gemini language model.
 
 	Args:
 		gemini_model:
-			Set to default: gemini-3.5-flash
+			Name of the Gemini model to use.
 
 	Returns:
 		Configured Gemini chat model.
@@ -33,15 +45,14 @@ def load_llm(
 
 	return ChatGoogleGenerativeAI(
 		model=gemini_model,
-		temperature=0,
-		api_key=settings.google_api_key
+		api_key=settings.google_api_key,
 	)
 
 
 def generate_answer(
 	question: str,
 	retriever: VectorStoreRetriever,
-	llm: ChatGoogleGenerativeAI
+	llm: ChatGoogleGenerativeAI,
 ) -> str:
 	"""
 	Generate an answer using the RAG pipeline.
@@ -58,6 +69,13 @@ def generate_answer(
 
 	Returns:
 		Generated answer.
+
+	Raises:
+		ValueError:
+			If the question is empty.
+
+		RuntimeError:
+			If answer generation fails.
 	"""
 
 	if not question.strip():
@@ -66,29 +84,29 @@ def generate_answer(
 		)
 
 	try:
-		# Retrieve relevant documents
-		documents = retriever.invoke(question)
+		documents: list[Document] = retriever.invoke(
+			question
+		)
 
-		# Combine retrieved chunks into one context string
 		context = "\n\n".join(
 			document.page_content
 			for document in documents
 		)
 
-		# Build prompt
 		prompt = get_rag_prompt()
 
 		formatted_prompt = prompt.invoke(
 			{
 				"context": context,
-				"question": question
+				"question": question,
 			}
 		)
 
-		# Generate response
-		response = llm.invoke(formatted_prompt)
+		response = llm.invoke(
+			formatted_prompt
+		)
 
-		return response.content
+		return extract_response_text(response)
 
 	except Exception as error:
 		raise RuntimeError(
@@ -99,10 +117,11 @@ def generate_answer(
 def generate_answer_with_sources(
 	question: str,
 	retriever: VectorStoreRetriever,
-	llm: ChatGoogleGenerativeAI
-) -> dict:
+	llm: ChatGoogleGenerativeAI,
+) -> RAGResult:
 	"""
-	Generate an answer using the RAG pipeline.
+	Generate an answer using the RAG pipeline
+	and return the retrieved source documents.
 
 	Args:
 		question:
@@ -115,45 +134,84 @@ def generate_answer_with_sources(
 			Configured Gemini model.
 
 	Returns:
-		Dictionary containing:
+		RAGResult containing:
 		- Generated answer
 		- Retrieved source documents
+
+	Raises:
+		ValueError:
+			If the question is empty.
+
+		RuntimeError:
+			If answer generation fails.
 	"""
 
 	if not question.strip():
 		raise ValueError(
-			"Question cannot be empty"
+			"Question cannot be empty."
 		)
 
 	try:
-		# Retrieve relevant documents
-		documents: list[Document] = retriever.invoke(question)
+		documents: list[Document] = retriever.invoke(
+			question
+		)
 
-		# Combine retrieved chunks into one context string
 		context = "\n\n".join(
 			document.page_content
 			for document in documents
 		)
 
-		# Build prompt
 		prompt = get_rag_prompt()
 
 		formatted_prompt = prompt.invoke(
 			{
 				"context": context,
-				"question": question
+				"question": question,
 			}
 		)
 
-		# Generate response
-		response = llm.invoke(formatted_prompt)
+		response = llm.invoke(
+			formatted_prompt
+		)
 
 		return {
-			"answer": str(response.text),
-			"documents": documents
+			"answer": extract_response_text(response),
+			"documents": documents,
 		}
 
 	except Exception as error:
 		raise RuntimeError(
 			f"Failed to generate answer: {error}"
 		) from error
+
+
+def extract_response_text(response: AIMessage) -> str:
+	"""
+	Extract plain text from a LangChain AI response.
+
+	Args:
+		response:
+			Response returned by the LLM.
+
+	Returns:
+		Plain text answer.
+	"""
+
+	content = response.content
+
+	if isinstance(content, str):
+		return content
+
+	if isinstance(content, list):
+		text_parts = []
+
+		for block in content:
+			if isinstance(block, dict) and block.get("type") == "text":
+				text = block.get("text")
+
+				if isinstance(text, str):
+					text_parts.append(text)
+
+		return "".join(text_parts)
+
+	return str(content)

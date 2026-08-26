@@ -1,15 +1,17 @@
 """
-PDF RAG Assistant API
+PDF RAG Assistant API.
 
-FastAPI Application
+FastAPI application.
 
-Run this using command: uvicorn api:app --reload
+Run this using command:
+    uvicorn api:app --reload
 """
 
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, status
 from langchain_community.vectorstores import FAISS
+from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -33,17 +35,18 @@ from src.vector_store import create_vector_store
 
 logger = get_logger(__name__)
 
+
 # --------------------------------------------------
 # FastAPI Application
 # --------------------------------------------------
 
 app = FastAPI(
-	title="PDF RAG Assistant API",
+	title=settings.app_name,
 	description=(
 		"REST API for the PDF-based "
 		"Retrieval Augmented Generation assistant."
 	),
-	version=settings.app_version
+	version=settings.app_version,
 )
 
 app.add_exception_handler(
@@ -62,9 +65,9 @@ logger.info(
 # RAG Application State
 # --------------------------------------------------
 
-documents: list | None = None
-metadata: dict | None = None
-chunks: list | None = None
+documents: list[Document] | None = None
+metadata: dict[str, int] | None = None
+chunks: list[Document] | None = None
 embedding_model: Embeddings | None = None
 vector_store: FAISS | None = None
 retriever: VectorStoreRetriever | None = None
@@ -78,7 +81,7 @@ llm: ChatGoogleGenerativeAI | None = None
 @app.get(
 	"/health",
 	status_code=status.HTTP_200_OK,
-	response_model=HealthResponse
+	response_model=HealthResponse,
 )
 def health_check() -> HealthResponse:
 	"""
@@ -92,7 +95,7 @@ def health_check() -> HealthResponse:
 
 	return HealthResponse(
 		status="healthy",
-		message="PDF RAG Assistant API is running."
+		message="PDF RAG Assistant API is running.",
 	)
 
 
@@ -103,7 +106,7 @@ def health_check() -> HealthResponse:
 @app.post(
 	"/upload",
 	status_code=status.HTTP_201_CREATED,
-	response_model=UploadResponse
+	response_model=UploadResponse,
 )
 async def upload_pdf(
 	file: UploadFile = File(...)  # noqa: B008	(The ... means no default value — the file is required.)
@@ -120,8 +123,8 @@ async def upload_pdf(
 
 	Raises:
 		HTTPException:
-			If the uploaded file is not a PDF or
-			the file cannot be saved.
+			If the uploaded file is not a PDF, is empty,
+			or cannot be saved.
 	"""
 
 	logger.info(
@@ -137,9 +140,9 @@ async def upload_pdf(
 
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
-			detail="Only PDF files are supported."
+			detail="Only PDF files are supported.",
 		)
-	
+
 	safe_filename = Path(file.filename).name
 	file_path = settings.upload_directory / safe_filename
 
@@ -154,16 +157,11 @@ async def upload_pdf(
 
 			raise HTTPException(
 				status_code=status.HTTP_400_BAD_REQUEST,
-				detail="Uploaded PDF is empty."
+				detail="Uploaded PDF is empty.",
 			)
 
 		file_path.write_bytes(file_content)
 
-		logger.info(
-			"PDF uploaded successfully: %s",
-			safe_filename,
-		)
-		
 	except OSError as error:
 		logger.exception(
 			"Failed to save uploaded PDF: %s",
@@ -172,16 +170,21 @@ async def upload_pdf(
 
 		raise HTTPException(
 			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-			detail="Failed to save the uploaded PDF."
+			detail="Failed to save the uploaded PDF.",
 		) from error
 
 	finally:
 		await file.close()
 
+	logger.info(
+		"PDF uploaded successfully: %s",
+		safe_filename,
+	)
+
 	return UploadResponse(
 		status="success",
 		message="PDF uploaded successfully.",
-		filename=safe_filename
+		filename=safe_filename,
 	)
 
 
@@ -192,10 +195,10 @@ async def upload_pdf(
 @app.post(
 	"/index",
 	status_code=status.HTTP_201_CREATED,
-	response_model=IndexResponse
+	response_model=IndexResponse,
 )
 def create_index(
-	request: IndexRequest
+	request: IndexRequest,
 ) -> IndexResponse:
 	"""
 	Create a FAISS index for an uploaded PDF.
@@ -312,14 +315,14 @@ def create_index(
 			"LLM loaded successfully: %s",
 			settings.llm_model_name,
 		)
-		
+
 	except Exception:
 		logger.exception(
 			"Failed to create FAISS index for: %s",
 			safe_filename,
 		)
 
-		# Reset partially created state
+		# Reset partially created RAG state.
 		documents = None
 		metadata = None
 		chunks = None
@@ -356,7 +359,7 @@ def create_index(
 	response_model=QueryResponse,
 )
 def query_pdf(
-	request: QueryRequest
+	request: QueryRequest,
 ) -> QueryResponse:
 	"""
 	Ask a question about the indexed PDF.
@@ -370,7 +373,7 @@ def query_pdf(
 
 	Raises:
 		HTTPException:
-			If no FAISS index exists or query generation fails.
+			If no FAISS index exists or the query is invalid.
 	"""
 
 	logger.info("PDF query requested.")
@@ -385,7 +388,7 @@ def query_pdf(
 
 	if retriever is None or llm is None:
 		logger.warning(
-			"Query rejected because RAG pipeline is not initialized."
+			"Query rejected because RAG pipeline is not initialized.",
 		)
 
 		raise HTTPException(
@@ -397,7 +400,7 @@ def query_pdf(
 		)
 
 	logger.info(
-		"Generating answer using the RAG pipeline."
+		"Generating answer using the RAG pipeline.",
 	)
 
 	result = generate_answer_with_sources(
@@ -406,15 +409,13 @@ def query_pdf(
 		llm=llm,
 	)
 
-	sources = []
-
-	for document in result["documents"]:
-		sources.append(
-			{
-				"page": document.metadata.get("page", 0) + 1,
-				"chunk_id": document.metadata.get("chunk_id"),
-			}
-		)
+	sources = [
+		{
+			"page": document.metadata.get("page", 0) + 1,
+			"chunk_id": document.metadata.get("chunk_id"),
+		}
+		for document in result["documents"]
+	]
 
 	logger.info(
 		"Answer generated successfully with %s source(s).",

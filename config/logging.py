@@ -12,14 +12,11 @@ from config.settings import settings
 # Logging Configuration
 # --------------------------------------------------
 
-# Log levels, From lowest to highest:
+# Log levels, from lowest to highest:
 # DEBUG
 # INFO
-# WARN
 # WARNING
-# EXCEPTION
 # ERROR
-# FATAL
 # CRITICAL
 
 logging.basicConfig(
@@ -36,8 +33,9 @@ logging.basicConfig(
 # Logger Factory
 # --------------------------------------------------
 
+
 def get_logger(
-	name: str
+	name: str,
 ) -> logging.Logger:
 	"""
 	Create or retrieve a logger for the given module name.

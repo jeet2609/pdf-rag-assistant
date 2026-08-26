@@ -12,6 +12,7 @@ from config.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 async def unexpected_exception_handler(
 	request: Request,
 	error: Exception,
