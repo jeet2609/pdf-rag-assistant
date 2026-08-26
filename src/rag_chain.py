@@ -88,9 +88,10 @@ def generate_answer(
 			question
 		)
 
-		context = "\n\n".join(
+		context = "\n\n---\n\n".join(
 			document.page_content
 			for document in documents
+			if document.page_content.strip()
 		)
 
 		prompt = get_rag_prompt()
@@ -156,9 +157,10 @@ def generate_answer_with_sources(
 			question
 		)
 
-		context = "\n\n".join(
+		context = "\n\n---\n\n".join(
 			document.page_content
 			for document in documents
+			if document.page_content.strip()
 		)
 
 		prompt = get_rag_prompt()

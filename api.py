@@ -7,14 +7,10 @@ Run this using command:
     uvicorn api:app --reload
 """
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, status
-from langchain_community.vectorstores import FAISS
-from langchain_core.documents import Document
-from langchain_core.embeddings import Embeddings
-from langchain_core.vectorstores import VectorStoreRetriever
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 from config.exceptions import unexpected_exception_handler
 from config.logging import get_logger
@@ -31,7 +27,13 @@ from src.document_loader import get_pdf_metadata, load_pdf
 from src.embeddings import get_embedding_model
 from src.rag_chain import generate_answer_with_sources, load_llm
 from src.retrieval import create_retriever
-from src.vector_store import create_vector_store
+from src.vector_store import (
+	create_vector_store,
+	load_index_metadata,
+	load_vector_store,
+	save_index_metadata,
+	save_vector_store,
+)
 
 logger = get_logger(__name__)
 
@@ -40,6 +42,101 @@ logger = get_logger(__name__)
 # FastAPI Application
 # --------------------------------------------------
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+	"""
+	Manage application startup and shutdown resources.
+
+	Initializes the embedding model once during application startup
+	so it can be reused across multiple indexing requests.
+	"""
+
+	logger.info("Initializing application resources.")
+
+	# Initialize embedding model once.
+	app.state.embedding_model = get_embedding_model()
+
+	logger.info(
+		"Embedding model initialized successfully: %s",
+		settings.embedding_model_name,
+	)
+
+	# Initialize LLM client once.
+	app.state.llm = load_llm()
+
+	logger.info(
+		"LLM initialized successfully: %s",
+		settings.llm_model_name,
+	)
+
+	app.state.vector_store = None
+	app.state.retriever = None
+
+	app.state.indexed_filename = None
+	app.state.indexed_modified_time = None
+	app.state.indexed_metadata = None
+	app.state.indexed_chunks_count = None
+
+	faiss_index_path = (
+		settings.vector_store_directory / "index.faiss"
+	)
+
+	index_metadata_path = (
+		settings.vector_store_directory / "metadata.json"
+	)
+
+	# Load existing FAISS index if available.
+	if faiss_index_path.exists() and index_metadata_path.exists():
+
+		app.state.vector_store = load_vector_store(
+			embedding_model=app.state.embedding_model,
+		)
+
+		app.state.retriever = create_retriever(
+			vector_store=app.state.vector_store,
+		)
+
+		index_metadata = load_index_metadata()
+
+		app.state.indexed_filename = index_metadata["filename"]
+		app.state.indexed_modified_time = index_metadata["modified_time"]
+		app.state.indexed_metadata = {
+			"total_page": index_metadata["total_page"],
+		}
+		app.state.indexed_chunks_count = index_metadata["chunks"]
+
+		logger.info(
+			"Existing FAISS vector store and metadata "
+			"loaded successfully."
+		)
+
+	elif faiss_index_path.exists() or index_metadata_path.exists():
+
+		logger.warning(
+			"Incomplete FAISS persistence detected. "
+			"Removing incomplete index files."
+		)
+
+		faiss_index_path.unlink(missing_ok=True)
+		index_metadata_path.unlink(missing_ok=True)
+
+		app.state.vector_store = None
+		app.state.retriever = None
+
+	else:
+		
+		app.state.vector_store = None
+		app.state.retriever = None
+
+		logger.info(
+			"No existing FAISS vector store found."
+		)
+
+	yield
+
+	logger.info("Application shutdown completed.")
+
+
 app = FastAPI(
 	title=settings.app_name,
 	description=(
@@ -47,6 +144,7 @@ app = FastAPI(
 		"Retrieval Augmented Generation assistant."
 	),
 	version=settings.app_version,
+	lifespan=lifespan,
 )
 
 app.add_exception_handler(
@@ -59,19 +157,6 @@ logger.info(
 	settings.app_name,
 	settings.app_version,
 )
-
-
-# --------------------------------------------------
-# RAG Application State
-# --------------------------------------------------
-
-documents: list[Document] | None = None
-metadata: dict[str, int] | None = None
-chunks: list[Document] | None = None
-embedding_model: Embeddings | None = None
-vector_store: FAISS | None = None
-retriever: VectorStoreRetriever | None = None
-llm: ChatGoogleGenerativeAI | None = None
 
 
 # --------------------------------------------------
@@ -91,7 +176,7 @@ def health_check() -> HealthResponse:
 		API health status.
 	"""
 
-	logger.info("Health check requested.")
+	logger.debug("Health check requested.")
 
 	return HealthResponse(
 		status="healthy",
@@ -147,9 +232,17 @@ async def upload_pdf(
 	file_path = settings.upload_directory / safe_filename
 
 	try:
-		file_content = await file.read()
 
-		if not file_content:
+		bytes_written = 0
+
+		with file_path.open("wb") as buffer:
+			while chunk := await file.read(1024 * 1024):
+				buffer.write(chunk)
+				bytes_written += len(chunk)
+
+		if bytes_written == 0:
+			file_path.unlink(missing_ok=True)
+
 			logger.warning(
 				"Rejected empty PDF upload: %s",
 				safe_filename,
@@ -160,13 +253,13 @@ async def upload_pdf(
 				detail="Uploaded PDF is empty.",
 			)
 
-		file_path.write_bytes(file_content)
-
 	except OSError as error:
 		logger.exception(
 			"Failed to save uploaded PDF: %s",
 			safe_filename,
 		)
+
+		file_path.unlink(missing_ok=True)
 
 		raise HTTPException(
 			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -220,15 +313,6 @@ def create_index(
 		request.filename,
 	)
 
-	# Use global because we assign values to these module-level variables.
-	global documents
-	global metadata
-	global chunks
-	global embedding_model
-	global vector_store
-	global retriever
-	global llm
-
 	safe_filename = Path(request.filename).name
 
 	if not safe_filename.lower().endswith(".pdf"):
@@ -258,6 +342,27 @@ def create_index(
 			),
 		)
 
+	modified_time = pdf_path.stat().st_mtime
+
+	if (
+		app.state.indexed_filename == safe_filename
+		and app.state.indexed_modified_time == modified_time
+		and app.state.retriever is not None
+	):
+		logger.info(
+			"PDF '%s' is already indexed and unchanged. "
+			"Skipping re-indexing.",
+			safe_filename,
+		)
+
+		return IndexResponse(
+			status="success",
+			message="PDF is already indexed. Re-indexing skipped.",
+			filename=safe_filename,
+			pages=app.state.indexed_metadata["total_page"],
+			chunks=app.state.indexed_chunks_count,
+		)
+
 	try:
 		logger.info(
 			"Loading PDF: %s",
@@ -285,14 +390,9 @@ def create_index(
 			len(chunks),
 		)
 
-		embedding_model = get_embedding_model()
+		embedding_model = app.state.embedding_model
 
-		logger.info(
-			"Embedding model loaded: %s",
-			settings.embedding_model_name,
-		)
-
-		vector_store = create_vector_store(
+		app.state.vector_store = create_vector_store(
 			documents=chunks,
 			embedding_model=embedding_model,
 		)
@@ -301,19 +401,28 @@ def create_index(
 			"FAISS vector store created successfully.",
 		)
 
-		retriever = create_retriever(
-			vector_store=vector_store,
+		save_vector_store(
+			vector_store=app.state.vector_store
+		)
+
+		save_index_metadata(
+			filename=safe_filename,
+			modified_time=modified_time,
+			total_page=metadata["total_page"],
+			chunks=len(chunks),
+		)
+
+		logger.info(
+			"FAISS vector store saved successfully: %s",
+			settings.vector_store_directory,
+		)
+
+		app.state.retriever = create_retriever(
+			vector_store=app.state.vector_store,
 		)
 
 		logger.info(
 			"Retriever created successfully.",
-		)
-
-		llm = load_llm()
-
-		logger.info(
-			"LLM loaded successfully: %s",
-			settings.llm_model_name,
 		)
 
 	except Exception:
@@ -323,13 +432,8 @@ def create_index(
 		)
 
 		# Reset partially created RAG state.
-		documents = None
-		metadata = None
-		chunks = None
-		embedding_model = None
-		vector_store = None
-		retriever = None
-		llm = None
+		app.state.vector_store = None
+		app.state.retriever = None
 
 		# Let the global exception handler generate
 		# the final 500 response.
@@ -339,6 +443,11 @@ def create_index(
 		"FAISS index creation completed successfully: %s",
 		safe_filename,
 	)
+
+	app.state.indexed_filename = safe_filename
+	app.state.indexed_modified_time = modified_time
+	app.state.indexed_metadata = metadata
+	app.state.indexed_chunks_count = len(chunks)
 
 	return IndexResponse(
 		status="success",
@@ -386,7 +495,9 @@ def query_pdf(
 			detail="Question cannot be empty",
 		)
 
-	if retriever is None or llm is None:
+	retriever = app.state.retriever
+	
+	if retriever is None:
 		logger.warning(
 			"Query rejected because RAG pipeline is not initialized.",
 		)
@@ -402,6 +513,8 @@ def query_pdf(
 	logger.info(
 		"Generating answer using the RAG pipeline.",
 	)
+
+	llm = app.state.llm
 
 	result = generate_answer_with_sources(
 		question=request.question,

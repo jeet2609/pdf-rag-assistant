@@ -116,6 +116,7 @@ rich==15.0.0
 rich-toolkit==0.20.3
 rignore==0.8.1
 rpds-py==2026.6.3
+ruff==0.16.2
 safetensors==0.8.0
 scikit-learn==1.9.0
 scipy==1.18.0
