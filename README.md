@@ -398,9 +398,9 @@ If both conditions match, re-indexing is skipped.
 $$
 \begin{gathered}
 \text{Same PDF} \\
-+ \\
+\text{+} \\
 \text{Same modification time} \\
-+ \\
+\text{+} \\
 \text{Existing retriever} \\
 \downarrow \\
 \text{Skip re-indexing}
