@@ -66,6 +66,10 @@ GENERATING_ANSWER_MESSAGE = (
 	"Generating answer..."
 )
 
+ASK_QUESTION_TEXT = (
+	"Ask a question"
+)
+
 ASK_QUESTION_BUTTON_TEXT = (
 	"Ask Question"
 )

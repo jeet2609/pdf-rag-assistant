@@ -3,7 +3,7 @@ Embedding Generation Module
 
 Responsible for:
 - Loading HuggingFace embedding model
-- Converting text chunks into vector embeddings
+- Detecting the available compute device
 - Providing embeddings for FAISS similarity search
 """
 
@@ -11,17 +11,22 @@ import torch
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 
+from config.settings import settings
+
 
 def get_device() -> str:
 	"""
-	Detect available compute device.
+	Detect the available compute device.
 
 	Priority:
 		1. Apple Silicon GPU (MPS)
 		2. CPU
+
+	Returns:
+		Device name used by the embedding model.
 	"""
 
-	if torch.mps.is_available():
+	if torch.backends.mps.is_available():
 		return "mps"
 
 	return "cpu"
@@ -29,36 +34,42 @@ def get_device() -> str:
 
 def get_embedding_model() -> HuggingFaceEmbeddings:
 	"""
-	Initialize and return HuggingFace embedding model.
+	Initialize and return the HuggingFace embedding model.
 
 	Returns:
-		HuggingFaceEmbeddings:
-			Configured embedding model.
-    """
+		Configured HuggingFace embedding model.
+
+	Raises:
+		RuntimeError:
+			If the embedding model fails to load.
+	"""
+
+	device = get_device()
+
+	model_name = settings.embedding_model_name
+
+	model_kwargs = {
+		"device": device,
+	}
+
+	encode_kwargs = {
+		"normalize_embeddings": True,
+	}
 
 	try:
-
-		device = get_device()
-
-		print(f"Using device: {device}")
-
-		model_name = "BAAI/bge-small-en-v1.5"
-		model_kwargs = {"device": device}
-		encode_kwargs = {"normalize_embeddings": True}
-
 		embedding_model = HuggingFaceEmbeddings(
 			model_name=model_name,
 			model_kwargs=model_kwargs,
-			encode_kwargs=encode_kwargs
+			encode_kwargs=encode_kwargs,
 		)
 
 		return embedding_model
 
 	except Exception as error:
-		raise Exception(  # noqa: TRY002
-			f"Failed to load embedding model: {error}"
+		raise RuntimeError(
+			f"Failed to load embedding model "
+			f"'{model_name}' on device '{device}'."
 		) from error
-
 
 # No need of this, as we are doing this in create_vector_store in file vector_store.py
 def generate_embeddings(

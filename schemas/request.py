@@ -12,12 +12,13 @@ class IndexRequest(BaseModel):
 	Request model for the FAISS index creation endpoint.
 	"""
 
-	# Here the '...' means "this field is required; there is no default value."
+	# '...' means the field is required and has no default value.
 	filename: str = Field(
 		...,
 		min_length=1,
 		description="Name of the uploaded PDF to index.",
 	)
+
 
 class QueryRequest(BaseModel):
 	"""
@@ -31,5 +32,5 @@ class QueryRequest(BaseModel):
 	question: str = Field(
 		...,
 		min_length=1,
-		description="Question to ask about the indexed PDF."
+		description="Question to ask about the indexed PDF.",
 	)

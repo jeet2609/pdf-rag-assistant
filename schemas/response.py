@@ -13,29 +13,31 @@ class HealthResponse(BaseModel):
 	"""
 
 	status: str = Field(
-		description="Current API health status."
+		description="Current API health status.",
 	)
 
 	message: str = Field(
-		description="Health check message."
+		description="Health check message.",
 	)
+
 
 class UploadResponse(BaseModel):
 	"""
-	Response model for the health check endpoint.
+	Response model for the PDF upload endpoint.
 	"""
 
 	status: str = Field(
-		description="Upload status."
+		description="Upload status.",
 	)
 
 	message: str = Field(
-		description="Upload result message"
+		description="Upload result message.",
 	)
 
 	filename: str = Field(
-		description="Name of the uploaded PDF."
+		description="Name of the uploaded PDF.",
 	)
+
 
 class IndexResponse(BaseModel):
 	"""
@@ -43,24 +45,25 @@ class IndexResponse(BaseModel):
 	"""
 
 	status: str = Field(
-		description="Index creation status."
+		description="Index creation status.",
 	)
 
 	message: str = Field(
-		description="Index creation result message."
+		description="Index creation result message.",
 	)
 
 	filename: str = Field(
-		description="Name of the indexed PDF."
+		description="Name of the indexed PDF.",
 	)
 
 	pages: int = Field(
-		description="Number of pages in the PDF."
+		description="Number of pages in the PDF.",
 	)
 
 	chunks: int = Field(
-		description="Number of chunks created from the PDF."
+		description="Number of chunks created from the PDF.",
 	)
+
 
 class SourceResponse(BaseModel):
 	"""
@@ -68,12 +71,13 @@ class SourceResponse(BaseModel):
 	"""
 
 	page: int = Field(
-		description="Page number containing the source chunk."
+		description="Page number containing the source chunk.",
 	)
 
 	chunk_id: int = Field(
-		description="Identifier of the retrieved chunk."
+		description="Identifier of the retrieved chunk.",
 	)
+
 
 class QueryResponse(BaseModel):
 	"""
@@ -81,17 +85,17 @@ class QueryResponse(BaseModel):
 	"""
 
 	status: str = Field(
-		description="Query processing status."
+		description="Query processing status.",
 	)
 
 	question: str = Field(
-		description="Original user question."
+		description="Original user question.",
 	)
 
 	answer: str = Field(
-		description="Generated answer."
+		description="Generated answer.",
 	)
 
 	sources: list[SourceResponse] = Field(
-		description="Source chunks used to generate the answer."
+		description="Source chunks used to generate the answer.",
 	)

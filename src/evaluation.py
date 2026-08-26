@@ -7,9 +7,25 @@ Responsibilities:
 - Evaluate RAG responses
 """
 
+from typing import TypedDict
+
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import cos_sim
+
+from config.settings import settings
 from src.embeddings import get_device
+
+
+class EvaluationResult(TypedDict):
+	"""
+	Type definition for RAG evaluation results.
+	"""
+
+	question: str
+	expected_answer: str
+	generated_answer: str
+	similarity: float
+	status: str
 
 
 def load_similarity_model() -> SentenceTransformer:
@@ -21,15 +37,15 @@ def load_similarity_model() -> SentenceTransformer:
 	"""
 
 	return SentenceTransformer(
-		"sentence-transformers/all-MiniLM-L6-v2",
-		device=get_device()
+		settings.sentence_transformers_model,
+		device=get_device(),
 	)
 
 
 def calculate_similarity(
 	expected_answer: str,
 	generated_answer: str,
-	similarity_model: SentenceTransformer
+	similarity_model: SentenceTransformer,
 ) -> float:
 	"""
 	Calculate semantic similarity between two answers.
@@ -45,8 +61,22 @@ def calculate_similarity(
 			SentenceTransformer model.
 
 	Returns:
-		Cosine similarity score.
+		Cosine similarity score between 0 and 1.
+
+	Raises:
+		ValueError:
+			If either answer is empty.
 	"""
+
+	if not expected_answer.strip():
+		raise ValueError(
+			"Expected answer cannot be empty."
+		)
+
+	if not generated_answer.strip():
+		raise ValueError(
+			"Generated answer cannot be empty."
+		)
 
 	expected_embedding = similarity_model.encode(
 		expected_answer,
@@ -60,7 +90,7 @@ def calculate_similarity(
 
 	score = cos_sim(
 		expected_embedding,
-		generated_embedding
+		generated_embedding,
 	)
 
 	return float(score.item())
@@ -70,8 +100,8 @@ def evaluate_rag(
 	question: str,
 	expected_answer: str,
 	generated_answer: str,
-	similarity_model: SentenceTransformer
-) -> dict:
+	similarity_model: SentenceTransformer,
+) -> EvaluationResult:
 	"""
 	Evaluate a single RAG response.
 
@@ -88,32 +118,36 @@ def evaluate_rag(
 		similarity_model:
 			SentenceTransformer model.
 
-		Returns:
-			Dictionary containing evaluation metrics.
+	Returns:
+		EvaluationResult containing evaluation metrics.
+
+	Raises:
+		ValueError:
+			If the expected or generated answer is empty.
 	"""
 
 	similarity = calculate_similarity(
 		expected_answer=expected_answer,
 		generated_answer=generated_answer,
-		similarity_model=similarity_model
+		similarity_model=similarity_model,
 	)
 
 	if similarity >= 0.90:
-		status = "Excellent"
+		evaluation_status = "Excellent"
 
 	elif similarity >= 0.75:
-		status = "Good"
+		evaluation_status = "Good"
 
 	elif similarity >= 0.50:
-		status = "Fair"
+		evaluation_status = "Fair"
 
 	else:
-		status = "Poor"
+		evaluation_status = "Poor"
 
 	return {
 		"question": question,
 		"expected_answer": expected_answer,
 		"generated_answer": generated_answer,
 		"similarity": round(similarity, 4),
-		"status": status
+		"status": evaluation_status,
 	}

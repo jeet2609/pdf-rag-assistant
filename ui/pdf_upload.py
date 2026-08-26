@@ -17,6 +17,7 @@ import tempfile
 from pathlib import Path
 
 import streamlit as st
+
 from src.chunking import split_document
 from src.document_loader import (
 	get_pdf_metadata,

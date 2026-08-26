@@ -5,20 +5,21 @@ Responsibilities:
 - Create a FAISS vector store from document chunks
 - Save the vector store locally
 - Load an existing vector store
-- Create a retriever for similarity search
 """
 
+import json
 from pathlib import Path
 
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 
-DEFAULT_INDEX_PATH = Path("./../vectorstore/faiss_index")
+from config.settings import settings
+
 
 def create_vector_store(
 	documents: list[Document],
-	embedding_model: Embeddings
+	embedding_model: Embeddings,
 ) -> FAISS:
 	"""
 	Create a FAISS vector store from document chunks.
@@ -32,6 +33,13 @@ def create_vector_store(
 
 	Returns:
 		FAISS vector store.
+
+	Raises:
+		ValueError:
+			If the document list is empty.
+
+		RuntimeError:
+			If the FAISS vector store cannot be created.
 	"""
 
 	if not documents:
@@ -40,64 +48,77 @@ def create_vector_store(
 		)
 
 	try:
-		vectore_store = FAISS.from_documents(
+		vector_store = FAISS.from_documents(
 			documents=documents,
-			embedding=embedding_model
+			embedding=embedding_model,
 		)
 
-		return vectore_store
+		return vector_store
 
 	except Exception as error:
-		raise Exception(  # noqa: TRY002
+		raise RuntimeError(
 			f"Failed to create FAISS vector store: {error}"
 		) from error
 
 
-
 def save_vector_store(
 	vector_store: FAISS,
-	save_path: Path = DEFAULT_INDEX_PATH
+	save_path: Path = settings.vector_store_directory,
 ) -> None:
 	"""
-	Save FAISS index to disk.
+	Save the FAISS vector store to disk.
 
 	Args:
 		vector_store:
-			FAISS vector store.
+			FAISS vector store to save.
 
 		save_path:
-			Directory where the index will be saved.
+			Directory where the FAISS index will be saved.
+
+	Raises:
+		RuntimeError:
+			If the FAISS vector store cannot be saved.
 	"""
 
 	try:
-		save_path.mkdir(parents=True, exist_ok=True)
+		save_path.mkdir(
+			parents=True,
+			exist_ok=True,
+		)
 
 		vector_store.save_local(
-			folder_path=str(save_path)
+			folder_path=str(save_path),
 		)
-		
+
 	except Exception as error:
-		raise Exception(  # noqa: TRY002
+		raise RuntimeError(
 			f"Failed to save FAISS index: {error}"
 		) from error
 
 
 def load_vector_store(
 	embedding_model: Embeddings,
-	load_path: Path = DEFAULT_INDEX_PATH
+	load_path: Path = settings.vector_store_directory,
 ) -> FAISS:
 	"""
-	Load an existing FAISS vector store.
+	Load an existing FAISS vector store from disk.
 
 	Args:
 		embedding_model:
 			Same embedding model used while creating the index.
 
 		load_path:
-			Location of saved FAISS index.
+			Location of the saved FAISS index.
 
 	Returns:
 		Loaded FAISS vector store.
+
+	Raises:
+		ValueError:
+			If the FAISS index does not exist.
+
+		RuntimeError:
+			If the FAISS index cannot be loaded.
 	"""
 
 	if not load_path.exists():
@@ -106,22 +127,78 @@ def load_vector_store(
 		)
 
 	try:
-		vectore_store = FAISS.load_local(
+		vector_store = FAISS.load_local(
 			folder_path=str(load_path),
 			embeddings=embedding_model,
 			allow_dangerous_deserialization=True,
 		)
 
-		return vectore_store
-		
+		return vector_store
+
 	except Exception as error:
-		raise Exception(  # noqa: TRY002
+		raise RuntimeError(
 			f"Failed to load FAISS index: {error}"
 		) from error
 
 
-# Why embedding_model is required ?
-# Short answer
-# FAISS itself does not create embeddings.
-# FAISS only stores and searches vectors.
-# So we must provide an embedding model whenever we create or query the FAISS index.
+def save_index_metadata(
+	filename: str,
+	modified_time: float,
+	total_page: int,
+	chunks: int,
+	save_path: Path = settings.vector_store_directory,
+) -> None:
+	"""
+	Save metadata for the persisted FAISS index.
+	"""
+
+	metadata = {
+		"filename": filename,
+		"modified_time": modified_time,
+		"total_page": total_page,
+		"chunks": chunks,
+	}
+
+	try:
+		save_path.mkdir(
+			parents=True,
+			exist_ok=True,
+		)
+
+		metadata_path = save_path / "metadata.json"
+
+		metadata_path.write_text(
+			json.dumps(metadata, indent=4),
+			encoding="utf-8",
+		)
+
+	except OSError as error:
+		raise RuntimeError(
+			f"Failed to save FAISS index metadata: {error}"
+		) from error
+
+def load_index_metadata(
+	load_path: Path = settings.vector_store_directory,
+) -> dict:
+	"""
+	Load metadata for the persisted FAISS index.
+	"""
+
+	metadata_path = load_path / "metadata.json"
+
+	if not metadata_path.exists():
+		raise FileNotFoundError(
+			f"FAISS index metadata not found: {metadata_path}"
+		)
+
+	try:
+		return json.loads(
+			metadata_path.read_text(
+				encoding="utf-8"
+			)
+		)
+
+	except (OSError, json.JSONDecodeError) as error:
+		raise RuntimeError(
+			f"Failed to load FAISS index metadata: {error}"
+		) from error

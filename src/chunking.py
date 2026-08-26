@@ -7,15 +7,16 @@ Responsible for:
 - Preparing documents for embedding generation
 """
 
-
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+from config.settings import settings
 
 
 def split_document(
 	documents: list[Document],
-	chunk_size: int = 1000,
-	chunk_overlap: int = 200
+	chunk_size: int = settings.chunk_size,
+	chunk_overlap: int = settings.chunk_overlap,
 ) -> list[Document]:
 	"""
 	Split documents into smaller chunks.
@@ -25,32 +26,50 @@ def split_document(
 			List of LangChain Document objects.
 
 		chunk_size:
-			Maximum characters per chunk.
+			Maximum number of characters per chunk.
 
 		chunk_overlap:
 			Number of overlapping characters between chunks.
 
 	Returns:
-		List of chunked Document objects.
+		List of chunked Document objects with unique chunk IDs.
+
+	Raises:
+		ValueError:
+			If the document list is empty or chunking parameters
+			are invalid.
 	"""
 
 	if not documents:
 		raise ValueError(
-			"Document list cannot be empty"
+			"Document list cannot be empty."
+		)
+
+	if chunk_size <= 0:
+		raise ValueError(
+			"chunk_size must be greater than 0."
+		)
+
+	if chunk_overlap < 0:
+		raise ValueError(
+			"chunk_overlap cannot be negative."
+		)
+
+	if chunk_overlap >= chunk_size:
+		raise ValueError(
+			"chunk_overlap must be smaller than chunk_size."
 		)
 
 	text_splitter = RecursiveCharacterTextSplitter(
 		chunk_size=chunk_size,
 		chunk_overlap=chunk_overlap,
-		length_function=len
+		length_function=len,
 	)
 
-	chunks = text_splitter.split_documents(
-		documents=documents
-	)
+	chunks = text_splitter.split_documents(documents)
 
 	# Add unique chunk IDs
-	for index, chunk in enumerate(chunks):
-		chunk.metadata["chunk_id"] = index + 1
+	for chunk_id, chunk in enumerate(chunks, start=1):
+		chunk.metadata["chunk_id"] = chunk_id
 
 	return chunks
