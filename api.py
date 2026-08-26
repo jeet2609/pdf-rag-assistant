@@ -124,7 +124,7 @@ async def lifespan(app: FastAPI):
 		app.state.retriever = None
 
 	else:
-		
+
 		app.state.vector_store = None
 		app.state.retriever = None
 
@@ -226,6 +226,24 @@ async def upload_pdf(
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
 			detail="Only PDF files are supported.",
+		)
+
+	max_upload_size = (
+		settings.max_upload_size_mb * 1024 * 1024
+	)
+	
+	if file.size is not None and file.size > max_upload_size:
+		logger.warning(
+			"Oversized PDF upload rejected: %s",
+			file.filename,
+		)
+	
+		raise HTTPException(
+			status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+			detail=(
+				f"PDF file size exceeds the "
+				f"{settings.max_upload_size_mb} MB limit."
+			),
 		)
 
 	safe_filename = Path(file.filename).name

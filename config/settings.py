@@ -36,6 +36,8 @@ class Settings(BaseSettings):
 		PROJECT_ROOT / "data" / "pdfs"
 	)
 
+	max_upload_size_mb: int = 20
+
 	vector_store_directory: Path = (
 		PROJECT_ROOT / "vectorstore" / "faiss_index"
 	)

@@ -141,13 +141,6 @@ def load_vector_store(
 		) from error
 
 
-# Why embedding_model is required ?
-# Short answer
-# FAISS itself does not create embeddings.
-# FAISS only stores and searches vectors.
-# So we must provide an embedding model whenever we create or query the FAISS index.
-
-
 def save_index_metadata(
 	filename: str,
 	modified_time: float,
