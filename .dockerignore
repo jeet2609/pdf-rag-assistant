@@ -1,0 +1,50 @@
+# Git
+.git/
+.gitignore
+
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment variables
+.env
+
+# OS files
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Local development files
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Notebooks
+notebooks/
+
+# Development documentation
+docs/
+
+# Reports
+reports/
+
+# Local uploaded PDFs
+data/pdfs/
+
+# Local FAISS index
+vectorstore/
+
+# Streamlit UI
+ui/
+
+# Shell scripts
+activate_venv.sh
