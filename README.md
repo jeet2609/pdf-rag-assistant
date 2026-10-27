@@ -487,15 +487,13 @@ The project includes several performance optimizations:
 
 ## Evaluation
 
-The project includes an evaluation workflow for measuring the quality of generated answers.
+The project includes an answer-evaluation module that compares generated answers with expected answers using semantic similarity.
 
-The evaluation process compares generated answers with expected answers using semantic similarity.
+- Uses Sentence Transformers to generate answer embeddings.
+- Calculates cosine similarity between expected and generated answers.
+- Classifies individual responses using configurable similarity thresholds.
 
-The evaluation model used is:
-
-`sentence-transformers/all-MiniLM-L6-v2`
-
-Evaluation helps identify how closely the generated response matches the expected answer.
+Initial manual testing has been performed with one PDF. Systematic evaluation across multiple documents and questions remains future work.
 
 ---
 
