@@ -16,3 +16,9 @@ vectorstore/chroma_db/
 
 # OS files
 .DS_Store
+
+# Uploaded documents
+data/pdfs/
+
+# Generated FAISS index and metadata
+vectorstore/faiss_index/
