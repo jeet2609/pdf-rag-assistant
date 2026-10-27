@@ -189,7 +189,7 @@ This model is used for evaluating semantic similarity between expected and gener
 ### 1. Clone the Repository
 
 ```bash
-git clone repository-url
+git clone git@github.com:jeet2609/pdf-rag-assistant.git
 cd pdf-rag-assistant
 ```
 
